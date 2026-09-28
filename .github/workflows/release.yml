@@ -60,6 +60,11 @@ jobs:
     needs: lua-verify
     env:
       RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      # The project config also pins Linux-only Lua test tooling. The Windows
+      # job installs only Node and Bun; prevent mise shims from trying to
+      # auto-install the remaining tools when npm launches child processes.
+      MISE_AUTO_INSTALL: "false"
+      MISE_NOT_FOUND_AUTO_INSTALL: "false"
     steps:
       - name: Validate tag input
         shell: pwsh
