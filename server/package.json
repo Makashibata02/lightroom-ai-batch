@@ -1,0 +1,57 @@
+{
+  "name": "lightroom-ai-batch-mcp",
+  "version": "1.0.0",
+  "description": "Optional Windows MCP bridge for the Lightroom AI Batch deterministic preprocessing pipeline.",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lightroom-ai-batch-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "lint": "eslint src tests",
+    "watch": "tsc --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --runInBand",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "lightroom",
+    "lightroom-classic",
+    "photography",
+    "ai-batch",
+    "codex",
+    "chatgpt"
+  ],
+  "author": "Lightroom AI Batch contributors",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "ajv": "^8.20.0"
+  },
+  "devDependencies": {
+    "@jest/globals": "30.0.0",
+    "@types/jest": "^30.0.0",
+    "@types/node": "^25.6.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^10.4.0",
+    "eslint-plugin-unused-imports": "^4.4.1",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.2.5",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.59.3"
+  }
+}

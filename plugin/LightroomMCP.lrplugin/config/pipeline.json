@@ -1,0 +1,33 @@
+{
+  "pipelineVersion": "1.0.0",
+  "denoise": {
+    "enabled": true,
+    "amount": 50,
+    "timeoutSeconds": 900
+  },
+  "autoTone": {
+    "enabled": true
+  },
+  "subjectPreset": {
+    "enabled": true,
+    "uuid": ""
+  },
+  "landscape": {
+    "enabled": true,
+    "features": [
+      "Sky",
+      "Snow",
+      "Architecture",
+      "Vegetation",
+      "Water",
+      "Natural Ground",
+      "Artificial Ground",
+      "Mountains"
+    ],
+    "timeoutSeconds": 900
+  },
+  "skipProcessed": true,
+  "force": false,
+  "processedCollection": "AI Pipeline / Processed",
+  "pollIntervalSeconds": 0.25
+}

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lightroom-ai-batch": {
+      "command": "C:\\Tools\\Lightroom-AI-Batch-MCP\\lightroom-ai-batch-mcp.exe",
+      "args": []
+    }
+  }
+}
