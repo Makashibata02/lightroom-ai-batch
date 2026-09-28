@@ -10,9 +10,14 @@ globals:
     args:
       - type: string
 
+  # Lightroom localization helper. The host resolves $$$/ keys from the
+  # matching TranslatedStrings file and falls back to the inline default.
+  LOC:
+    any: true
+
   # Plugin context + environment flags injected by Lightroom.
   _PLUGIN:
-    property: read-only
+    any: true
   MAC_ENV:
     property: read-only
   WIN_ENV:
