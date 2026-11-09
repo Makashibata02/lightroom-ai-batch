@@ -37,4 +37,4 @@ jobs:
         run: sudo luarocks --lua-version=5.4 install busted
 
       - name: Run busted
-        run: lua5.4 /usr/local/bin/busted
+        run: busted

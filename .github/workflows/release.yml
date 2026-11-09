@@ -52,7 +52,7 @@ jobs:
       - name: Run plug-in checks
         run: |
           selene plugin/LightroomMCP.lrplugin
-          lua5.4 /usr/local/bin/busted
+          busted
 
   windows-release:
     name: Build Windows release from tag
