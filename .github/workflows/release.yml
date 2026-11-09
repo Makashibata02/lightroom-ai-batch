@@ -47,12 +47,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lua5.4 liblua5.4-dev luarocks
-          sudo luarocks install busted
+          sudo luarocks --lua-version=5.4 install busted
 
       - name: Run plug-in checks
         run: |
           selene plugin/LightroomMCP.lrplugin
-          busted
+          lua5.4 /usr/local/bin/busted
 
   windows-release:
     name: Build Windows release from tag
