@@ -21,16 +21,17 @@ local function collectionNames(processedPath)
     return setName, processedName
 end
 
-function PipelineCollections.ensure(catalog, processedPath)
+function PipelineCollections.ensure(catalog, processedPath, timeoutSeconds)
     local out = {}
     local setName, processedName = collectionNames(processedPath)
     local set = findSet(catalog, setName)
     if not set then
-        catalog:withWriteAccessDo(
+        local result = catalog:withWriteAccessDo(
             LOC "$$$/LightroomAIBatch/History/CreateCollectionSet=Create AI Pipeline Collection Set",
             function()
                 catalog:createCollectionSet(setName, nil, true)
-            end)
+            end, { timeout = timeoutSeconds or 30 })
+        if result ~= "executed" then error("Collection set creation was not executed: " .. tostring(result)) end
         -- Lightroom forbids reading collection information in the same write
         -- gate that created the collection set, so reacquire it afterwards.
         set = findSet(catalog, setName)
@@ -41,7 +42,7 @@ function PipelineCollections.ensure(catalog, processedPath)
     out.Failed = findChild(set, "Failed")
     out.Skipped = findChild(set, "Skipped")
     if not out.Processed or not out.Failed or not out.Skipped then
-        catalog:withWriteAccessDo(
+        local result = catalog:withWriteAccessDo(
             LOC "$$$/LightroomAIBatch/History/CreateCollections=Create AI Pipeline Collections",
             function()
                 if not out.Processed then
@@ -49,19 +50,21 @@ function PipelineCollections.ensure(catalog, processedPath)
                 end
                 if not out.Failed then out.Failed = catalog:createCollection("Failed", set, true) end
                 if not out.Skipped then out.Skipped = catalog:createCollection("Skipped", set, true) end
-            end)
+            end, { timeout = timeoutSeconds or 30 })
+        if result ~= "executed" then error("Collection creation was not executed: " .. tostring(result)) end
     end
     return out
 end
 
-function PipelineCollections.add(catalog, collections, name, photo)
+function PipelineCollections.add(catalog, collections, name, photo, timeoutSeconds)
     local collection = collections and collections[name]
     if not collection then return false end
-    catalog:withWriteAccessDo(
+    local result = catalog:withWriteAccessDo(
         LOC("$$$/LightroomAIBatch/History/MarkCollection=Mark AI Pipeline ^1", name),
         function()
             collection:addPhotos({ photo })
-        end)
+        end, { timeout = timeoutSeconds or 30 })
+    if result ~= "executed" then error("Collection write access was not executed: " .. tostring(result)) end
     return true
 end
 

@@ -546,6 +546,20 @@ export const TOOL_CONTRACTS: ToolContract[] = [
           type: "boolean",
           description: "Skip photos already completed by the current pipeline version",
         },
+        recipe: {
+          type: "object",
+          additionalProperties: false,
+          description: "Optional workbench recipe. Portrait/Sky presets run before Landscape; one ordinary style preset may run last. Subject selection uses config.subjectPreset.uuid.",
+          properties: {
+            category: { type: "string", enum: ["animals", "people", "street", "landscape", "food"] },
+            presetUuids: {
+              type: "array", maxItems: 32, uniqueItems: true,
+              items: { type: "string", minLength: 1 },
+              description: "Ordered extra preset UUIDs from list_develop_presets; style must be last",
+            },
+          },
+          required: ["category", "presetUuids"],
+        },
         config: {
           type: "object",
           additionalProperties: false,
@@ -600,6 +614,16 @@ export const TOOL_CONTRACTS: ToolContract[] = [
               },
             },
             processedCollection: { type: "string", minLength: 1 },
+            runtime: {
+              type: "object",
+              additionalProperties: false,
+              properties: {
+                readyTimeoutSeconds: { type: "number", exclusiveMinimum: 0 },
+                writeAccessTimeoutSeconds: { type: "number", exclusiveMinimum: 0 },
+                drainTimeoutSeconds: { type: "number", exclusiveMinimum: 0 },
+                heartbeatIntervalSeconds: { type: "number", exclusiveMinimum: 0 },
+              },
+            },
             pollIntervalSeconds: { type: "number", exclusiveMinimum: 0 },
           },
         },

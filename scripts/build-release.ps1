@@ -22,14 +22,14 @@ if (Test-Path -LiteralPath $stageRoot) { Remove-Item -LiteralPath $stageRoot -Re
 New-Item -ItemType Directory -Path $stageRoot, $outRoot -Force | Out-Null
 
 $pluginFiles = @(
-    "AiState.lua", "BatchJobStore.lua", "BatchPipeline.lua", "HandlerBatch.lua",
+    "AiOperation.lua", "AiState.lua", "BatchJobStore.lua", "BatchPipeline.lua", "HandlerBatch.lua",
     "HandlerCollections.lua", "HandlerDevelop.lua", "HandlerExport.lua", "HandlerImport.lua",
     "HandlerMetadata.lua", "HandlerOrganization.lua", "HandlerSearch.lua", "HandlerSelection.lua",
-    "Info.lua", "JSON.lua", "LandscapePreset.lua", "Log.lua", "MenuAIBatchCancel.lua",
-    "MenuAIBatchDenoise.lua", "MenuAIBatchPrepare.lua", "MenuAIBatchStatus.lua",
-    "MenuBatchCommon.lua", "MenuShowStatus.lua", "MetadataProvider.lua", "PhotoLookup.lua",
+    "Info.lua", "JSON.lua", "LandscapePreset.lua", "Log.lua",
+    "MenuBatchCommon.lua", "MetadataProvider.lua", "PhotoLookup.lua",
     "PipelineCollections.lua", "PipelineConfig.lua", "PipelineState.lua", "PluginInfoProvider.lua",
-    "PluginInit.lua", "SubjectPreset.lua", "TranslatedStrings_en.txt", "TranslatedStrings_zh_cn.txt"
+    "PluginInit.lua", "SubjectPreset.lua", "TranslatedStrings_en.txt", "TranslatedStrings_zh_cn.txt",
+    "RecipePresets.lua", "Workbench.lua", "WorkbenchState.lua", "MenuAIBatchWorkbench.lua"
 )
 
 function Copy-Plugin([string]$Destination) {

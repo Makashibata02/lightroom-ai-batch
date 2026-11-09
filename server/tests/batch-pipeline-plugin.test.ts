@@ -29,6 +29,21 @@ describe('AI batch plugin contract', () => {
     expect(source).not.toContain('ColorNoiseReduction');
   });
 
+  it('ships the operation gate and conservative runtime deadlines', () => {
+    const source = plugin('AiOperation.lua');
+    const config = JSON.parse(plugin('config', 'pipeline.json')) as { runtime: Record<string, number> };
+    expect(config.runtime).toEqual({
+      readyTimeoutSeconds: 30, writeAccessTimeoutSeconds: 30,
+      drainTimeoutSeconds: 60, heartbeatIntervalSeconds: 5,
+    });
+    expect(source).toContain('if operation.callReturned then');
+    expect(source).toContain('context:addCleanupHandler');
+    expect(source).toContain('RESTART_REQUIRED');
+    expect(plugin('AiState.lua')).not.toContain('if callError then error(callError) end');
+    const build = fs.readFileSync(path.join(root, 'scripts', 'build-release.ps1'), 'utf8');
+    expect(build).toContain('"AiOperation.lua"');
+  });
+
   it('serializes job snapshots and uses unique temp files', () => {
     const source = plugin('BatchJobStore.lua');
 
@@ -69,18 +84,19 @@ describe('AI batch plugin contract', () => {
     expect(source).toContain('CorrectionName = "AUTO Landscape - " .. feature');
   });
 
-  it('routes both menu profiles and the MCP start tool to the same backend', () => {
+  it('exposes only the workbench menu and routes it to the shared batch backend', () => {
     const info = plugin('Info.lua');
-    const fullMenu = plugin('MenuAIBatchPrepare.lua');
-    const denoiseMenu = plugin('MenuAIBatchDenoise.lua');
+    const menu = plugin('MenuAIBatchWorkbench.lua');
+    const workbench = plugin('Workbench.lua');
     const common = plugin('MenuBatchCommon.lua');
     const handler = plugin('HandlerBatch.lua');
     const dispatch = plugin('PluginInfoProvider.lua');
 
     expect(info).toContain('LrExportMenuItems = {');
     expect(info).not.toContain('LrLibraryMenuItems = {');
-    expect(fullMenu).toContain('{ profile = "full" }');
-    expect(denoiseMenu).toContain('{ profile = "denoise-only" }');
+    expect(info.match(/file = "Menu[^"]+\.lua"/g)).toEqual(['file = "MenuAIBatchWorkbench.lua"']);
+    expect(menu).toContain("require 'Workbench'");
+    expect(workbench).toContain('MenuBatchCommon.start(TITLE, args)');
     expect(common).toContain('HandlerBatch.start(args or {})');
     expect(common).toContain('HandlerBatch.status({ jobId = jobId })');
     expect(common).toContain('HandlerBatch.cancel({ jobId = state.lastJobId })');

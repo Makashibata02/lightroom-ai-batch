@@ -1,6 +1,6 @@
 {
   "name": "lightroom-ai-batch-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Optional Windows MCP bridge for the Lightroom AI Batch deterministic preprocessing pipeline.",
   "private": true,
   "type": "module",

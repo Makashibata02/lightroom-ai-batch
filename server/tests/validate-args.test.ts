@@ -3,6 +3,23 @@ import { validateToolArgs } from '../src/validate-args.js';
 import { createCallToolHandler } from '../src/tool-handler.js';
 
 describe('validateToolArgs', () => {
+  it('accepts a category recipe and rejects malformed module selections', () => {
+    expect(validateToolArgs('lr_batch_pipeline', {
+      recipe: { category: 'people', presetUuids: ['skin-uuid', 'cn13-uuid'] },
+    })).toBeNull();
+    expect(validateToolArgs('lr_batch_pipeline', {
+      recipe: { category: 'food', presetUuids: [] },
+    })).toBeNull();
+    for (const recipe of [
+      { category: 'unknown', presetUuids: [] },
+      { category: 'people', presetUuids: ['same', 'same'] },
+      { category: 'people', presetUuids: [''] },
+      { category: 'people' },
+      { category: 'people', presetUuids: [], cloud: true },
+    ]) {
+      expect(validateToolArgs('lr_batch_pipeline', { recipe })).not.toBeNull();
+    }
+  });
   it('accepts arguments that satisfy the published schema', () => {
     expect(validateToolArgs('get_photo_metadata', { photo_id: 914 })).toBeNull();
     expect(validateToolArgs('get_photo_metadata', { photo_id: '/a.jpg' })).toBeNull();

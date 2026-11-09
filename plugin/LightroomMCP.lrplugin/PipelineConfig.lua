@@ -21,6 +21,12 @@ local DEFAULTS = {
     force = false,
     processedCollection = "AI Pipeline / Processed",
     pollIntervalSeconds = 0.25,
+    runtime = {
+        readyTimeoutSeconds = 30,
+        writeAccessTimeoutSeconds = 30,
+        drainTimeoutSeconds = 60,
+        heartbeatIntervalSeconds = 5,
+    },
 }
 
 local function clone(value)
@@ -64,6 +70,14 @@ local function readJson(path)
 end
 
 local function validate(config)
+    if type(config.runtime) ~= "table" then error("runtime must be an object") end
+    for name, value in pairs(DEFAULTS.runtime) do
+        local configured = config.runtime[name] == nil and value or tonumber(config.runtime[name])
+        if not configured or configured <= 0 or configured ~= configured or configured == math.huge then
+            error("runtime." .. name .. " must be a finite positive number")
+        end
+        config.runtime[name] = configured
+    end
     if type(config.skipProcessed) ~= "boolean" then error("skipProcessed must be boolean") end
     if type(config.force) ~= "boolean" then error("force must be boolean") end
     if type(config.denoise.enabled) ~= "boolean" then error("denoise.enabled must be boolean") end

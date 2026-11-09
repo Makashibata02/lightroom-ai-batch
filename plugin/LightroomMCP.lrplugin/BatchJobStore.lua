@@ -139,6 +139,22 @@ function BatchJobStore.appendEvent(job, photoItem, step, status, reason)
     end
 end
 
+function BatchJobStore.observeOperation(job, index, operation)
+    local item = job.photos[index]
+    local previous = item.operation
+    item.operation = operation
+    job.lastHeartbeatAt = nowIso()
+    job.currentPhotoId = item.photoId
+    job.currentFilename = item.filename
+    job.executionState = operation.state
+    job.restartRequired = operation.restartRequired == true
+    BatchJobStore.persist(job)
+    if not previous or previous.operationId ~= operation.operationId or previous.state ~= operation.state then
+        BatchJobStore.appendEvent(job, item, operation.kind, "OPERATION_" .. operation.state,
+            operation.operationId .. (operation.error and (": " .. operation.error) or ""))
+    end
+end
+
 function BatchJobStore.create(photoItems, config, warnings)
     local jobId = LrUUID.generateUUID()
     local job = {
@@ -173,6 +189,15 @@ function BatchJobStore.get(jobId)
         job.status = "FAILED"
         job.endedAt = nowIso()
         job.failureReason = "Lightroom restarted before the job completed"
+        for index, item in ipairs(job.photos or {}) do
+            if not item.counted then
+                BatchJobStore.finishPhoto(job, index, item.status == "QUEUED" and "SKIPPED" or "FAILED",
+                    job.failureReason)
+            end
+        end
+        if job.startedEpoch then job.durationSeconds = os.time() - job.startedEpoch end
+        job.startedEpoch = nil
+        job.restartRequired = false
         BatchJobStore.persist(job)
     end
     state.jobs[jobId] = job
@@ -196,6 +221,7 @@ function BatchJobStore.setJobStatus(job, status, reason)
         job.startedEpoch = os.time()
     end
     if TERMINAL[status] then
+        job.executionState = job.restartRequired and "RESTART_REQUIRED" or status
         job.endedAt = nowIso()
         if job.startedEpoch then job.durationSeconds = os.time() - job.startedEpoch end
         job.startedEpoch = nil
@@ -262,6 +288,23 @@ function BatchJobStore.finishPhoto(job, index, status, reason)
     end
     BatchJobStore.persist(job)
     BatchJobStore.appendEvent(job, item, "PHOTO", status, reason)
+end
+
+function BatchJobStore.setModuleStatus(job, index, moduleIndex, status, reason)
+    local module = job.photos[index].modules[moduleIndex]
+    module.status = status
+    module.reason = reason
+    if status == "RUNNING" then
+        module.startedAt, module.startedEpoch = nowIso(), os.time()
+    else
+        if status == "COMPLETE" then module.validatedAt = nowIso() end
+        if status ~= "COMPLETE" or not module.endedAt then module.endedAt = nowIso() end
+        if module.startedEpoch then module.durationSeconds = os.time() - module.startedEpoch end
+        module.startedEpoch = nil
+    end
+    local publicStatus = status == "RUNNING" and "PRESET_RUNNING" or
+        (status == "FAILED" and "FAILED" or (status == "SKIPPED" and "SKIPPED" or "PRESET_COMPLETE"))
+    BatchJobStore.setPhotoStatus(job, index, publicStatus, "PRESET:" .. module.uuid, reason)
 end
 
 function BatchJobStore.directory()

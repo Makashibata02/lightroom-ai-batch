@@ -1,10 +1,11 @@
 local LrDevelopController = import 'LrDevelopController'
+local LrApplication = import 'LrApplication'
 local LrTasks = import 'LrTasks'
 
+local AiOperation = require 'AiOperation'
 local Log = require 'Log'
 
 local AiState = {}
-local enhanceTaskBusy = false
 
 local function cancelled(options)
     return options and options.isCancelled and options.isCancelled()
@@ -14,16 +15,15 @@ local function waitFor(predicate, options)
     local timeoutSeconds = options.timeoutSeconds or 900
     local pollInterval = options.pollIntervalSeconds or 0.25
     local deadline = os.time() + timeoutSeconds
-    local lastError
     while os.time() <= deadline do
+        if options.onHeartbeat then options.onHeartbeat() end
         if cancelled(options) then return false, "cancelled" end
         local ok, value, detail, fatal = LrTasks.pcall(predicate)
         if ok and value then return true, detail end
         if ok and fatal then return false, tostring(fatal) end
-        if not ok then lastError = tostring(value) end
+        if not ok then return false, tostring(value) end
         LrTasks.sleep(pollInterval)
     end
-    if lastError then return false, "timed out; last state error: " .. lastError end
     return false, "timed out after " .. tostring(timeoutSeconds) .. " seconds"
 end
 
@@ -61,6 +61,9 @@ local function waitForDenoiseReady(photo, options)
     local readyStableCount = 0
     local lastReadySummary = nil
     local ready, readyDetail = waitFor(function()
+        if LrApplication.activeCatalog():getTargetPhoto() ~= photo then
+            return false, nil, "Active photo changed before Denoise inspection"
+        end
         local panel = LrDevelopController.getEnhancePanelState()
         local available = photo:isAvailableForEditing()
         local summary = panelSummary(panel, available)
@@ -77,9 +80,10 @@ local function waitForDenoiseReady(photo, options)
         end
         return readyStableCount >= 3, panel
     end, {
-        timeoutSeconds = options.readyTimeoutSeconds or 15,
+        timeoutSeconds = options.readyTimeoutSeconds or 30,
         pollIntervalSeconds = options.pollIntervalSeconds,
         isCancelled = options.isCancelled,
+        onHeartbeat = options.onHeartbeat,
     })
     if not ready then
         return false, readyDetail
@@ -101,6 +105,7 @@ end
 
 function AiState.submitDenoise(photo, amount, options)
     options = options or {}
+    if not AiOperation.isIdle() then return false, "a previous Lightroom SDK call is still active" end
     local ready, readyDetail = waitForDenoiseReady(photo, options)
     if not ready then
         return false, "Denoise controls did not become ready: " .. tostring(readyDetail)
@@ -115,71 +120,38 @@ function AiState.submitDenoise(photo, amount, options)
             .. " amount=" .. tostring(amount))
         return true, existingPanel
     end
-    if enhanceTaskBusy then
-        return false, "a previous Lightroom Enhance SDK call is still active"
-    end
-
-    local callDone = false
-    local callError = nil
     local lastSummary = nil
-    enhanceTaskBusy = true
     Log.info("Denoise submit photo=" .. tostring(photo.localIdentifier)
         .. " amount=" .. tostring(amount))
-    LrTasks.startAsyncTask(function()
-        local ok, err = LrTasks.pcall(function()
-            -- Lightroom Classic 15.5.1 accepts this positional SDK form. The
-            -- options-table form currently used by the upstream reference was
-            -- rejected live with "invalid paramName ... toggleEnhance".
-            LrDevelopController.setEnhance("denoise", true, amount)
-        end)
-        if not ok then callError = tostring(err) end
-        callDone = true
-        enhanceTaskBusy = false
-        if callError then
-            Log.error("Denoise SDK call failed photo=" .. tostring(photo.localIdentifier)
-                .. " error=" .. callError)
-        else
-            Log.info("Denoise SDK call returned photo=" .. tostring(photo.localIdentifier))
-        end
-    end)
-
     local function desiredState()
-        if callError then return false, nil, callError end
+        if LrApplication.activeCatalog():getTargetPhoto() ~= photo then
+            return false, nil, "Active photo changed during Denoise"
+        end
         local desired, panel = denoiseState(photo, amount)
         local available = photo:isAvailableForEditing()
         local summary = panelSummary(panel, available)
         if summary ~= lastSummary then
             lastSummary = summary
             Log.info("Denoise state photo=" .. tostring(photo.localIdentifier)
-                .. " callDone=" .. tostring(callDone) .. " " .. summary)
+                .. " " .. summary)
         end
-        if callDone and not desired and panel and panel.denoiseEnabled == false then
+        if not desired and panel and panel.denoiseEnabled == false then
             return false, panel, "Denoise is unavailable for this photo"
         end
         return desired, panel
     end
 
-    return waitFor(desiredState, options)
+    return AiOperation.run("DENOISE", photo.localIdentifier, function()
+        if LrApplication.activeCatalog():getTargetPhoto() ~= photo then
+            error("Active photo changed before Denoise submission")
+        end
+        LrDevelopController.setEnhance("denoise", true, amount)
+    end, desiredState, options)
 end
 
 function AiState.updateMasks(catalog, photos, options)
-    local callDone = false
-    local callError = nil
-    LrTasks.startAsyncTask(function()
-        local ok, err = LrTasks.pcall(function()
-            catalog:withWriteAccessDo(
-                LOC "$$$/LightroomAIBatch/History/UpdateAISettings=AI Batch Update AI Settings",
-                function()
-                    catalog:updateAISettings(photos)
-                end, { timeout = options.timeoutSeconds or 900 })
-        end)
-        if not ok then callError = tostring(err) end
-        callDone = true
-    end)
-
+    options = options or {}
     local function complete()
-        if callError then error(callError) end
-        if not callDone then return false end
         for _, photo in ipairs(photos) do
             if photo:needsUpdateAISettings() then return false end
             if not photo:isAvailableForEditing() then return false end
@@ -187,11 +159,30 @@ function AiState.updateMasks(catalog, photos, options)
         return true
     end
 
-    return waitFor(complete, options)
+    return AiOperation.run("AI_MASK_UPDATE", photos[1] and photos[1].localIdentifier,
+        function(operation)
+            if LrApplication.activeCatalog() ~= catalog or catalog:getTargetPhoto() ~= photos[1] then
+                error("Active catalog or photo changed before AI mask update")
+            end
+            local result = catalog:withWriteAccessDo(
+                LOC "$$$/LightroomAIBatch/History/UpdateAISettings=AI Batch Update AI Settings",
+                function()
+                    if operation.abortRequested then error("cancelled before AI mask update") end
+                    Log.info("AI mask write callback entered id=" .. operation.operationId)
+                    catalog:updateAISettings(photos)
+                    Log.info("AI mask write callback returned id=" .. operation.operationId)
+                end, { timeout = options.writeAccessTimeoutSeconds or 30 })
+            if result ~= "executed" then error("AI mask write access was not executed: " .. tostring(result)) end
+        end, complete, options)
 end
 
 function AiState.waitForPhotoAvailable(photo, options)
-    return waitFor(function() return photo:isAvailableForEditing() == true end, options)
+    return waitFor(function()
+        if LrApplication.activeCatalog():getTargetPhoto() ~= photo then
+            return false, nil, "Active photo changed while waiting for edit availability"
+        end
+        return photo:isAvailableForEditing() == true
+    end, options)
 end
 
 return AiState

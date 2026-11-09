@@ -16,4 +16,9 @@ function HandlerBatch.cancel(args)
     return pipeline().cancel(args or {})
 end
 
+-- Internal menu helper, not another public MCP tool.
+function HandlerBatch.preferredJobId(fallback)
+    return pipeline().preferredJobId(fallback)
+end
+
 return HandlerBatch

@@ -58,6 +58,11 @@ function connect(port, label) {
     sock.once("error", reject);
     sock.once("connect", () => {
       sock.removeAllListeners("error");
+      // A response listener can be rebound between probes. Let its close
+      // handler reconnect; never resend a possibly accepted write request.
+      sock.on("error", (err) => {
+        console.log(`[${label}] socket error (${err.message})`);
+      });
       console.log(`[${label}] connected :${port}`);
       resolve(sock);
     });
@@ -141,7 +146,8 @@ const responsePromise = new Promise((resolve, reject) => {
 await responseConnected;
 
 const payload = JSON.stringify({ hello: token, id, action, params });
-console.log(`>>> ${payload}`);
+// The authentication token belongs on the socket, never in console/log output.
+console.log(">>>", JSON.stringify({ id, action, params }));
 reqSock.write(payload + "\n");
 
 const resp = await responsePromise;

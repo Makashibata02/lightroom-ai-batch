@@ -39,7 +39,7 @@ description = "Verify the plugin config matches the canonical config"
 run = "node scripts/sync-config.mjs --check"
 
 [tasks.release]
-description = "Build both v1.0.0 Windows release ZIP files and SHA256SUMS"
+description = "Build both Windows release ZIP files and SHA256SUMS"
 run = "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-release.ps1"
 
 [tasks."lua:deps"]

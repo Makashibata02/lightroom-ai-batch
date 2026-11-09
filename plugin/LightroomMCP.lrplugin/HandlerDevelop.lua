@@ -343,6 +343,10 @@ local function allDevelopPresetEntries()
     return entries
 end
 
+-- Shared SDK enumeration for the batch workbench. Keep preset objects local
+-- to Lightroom; only summaries/UUIDs cross the MCP boundary.
+DevelopHandler.presetEntries = allDevelopPresetEntries
+
 local function presetSummary(entry)
     return {
         name = entry.name,

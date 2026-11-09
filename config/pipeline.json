@@ -29,5 +29,11 @@
   "skipProcessed": true,
   "force": false,
   "processedCollection": "AI Pipeline / Processed",
-  "pollIntervalSeconds": 0.25
+  "pollIntervalSeconds": 0.25,
+  "runtime": {
+    "readyTimeoutSeconds": 30,
+    "writeAccessTimeoutSeconds": 30,
+    "drainTimeoutSeconds": 60,
+    "heartbeatIntervalSeconds": 5
+  }
 }
